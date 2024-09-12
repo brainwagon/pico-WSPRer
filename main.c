@@ -534,7 +534,7 @@ printf("Battery (low power) mode:%s\n\n",_battery_mode);
 							printf(UNDERLINE_ON);printf(BRIGHT);
 printf("VALID commands: ");printf(UNDERLINE_OFF);printf(NORMAL);
 
-printf("\n\n\tX: eXit configuraiton and reboot\n\tC: change Callsign (6 char max)\n\t");
+printf("\n\n\tX: eXit configuration and reboot\n\tC: change Callsign (6 char max)\n\t");
 printf("S: change Suffix (added to callsign for WSPR3) use '-' to disable WSPR3\n\t");
 printf("I: change Id13 (two alpha numeric chars, ie Q8) use '--' to disable U4B\n\t");
 printf("M: change starting Minute (0,2,4,6,8)\n\tL: Lane (1,2,3,4) corresponding to 4 frequencies in 20M band\n\t");
