@@ -16,6 +16,8 @@
 
 static char grid5;
 static char grid6;
+static float altitude_snapshot;
+static int rf_pin;
 static int U4B_second_packet_has_started = 0;
 static int U4B_second_packet_has_started_at_minute;
 static int itx_trigger = 0;
@@ -64,6 +66,7 @@ WSPRbeaconContext *WSPRbeaconInit(const char *pcallsign, const char *pgridsquare
     assert_(pdco);
     WSPRbeaconContext *p = calloc(1, sizeof(WSPRbeaconContext));
     assert_(p);
+	rf_pin=gpio; //save the value of the (base) RF pin for enabling/disabling them later
     strncpy(p->_pu8_callsign, pcallsign, sizeof(p->_pu8_callsign));
     strncpy(p->_pu8_locator, pgridsquare, sizeof(p->_pu8_locator));
     p->_u8_txpower = txpow_dbm;
@@ -178,7 +181,8 @@ else
 		at_least_one_slot_has_elapsed=1;  
 		if (pctx->_txSched.oscillatorOff && schedule[(current_minute+9)%10]==-1)    // if we want to switch oscillator off and are in non sheduled interval 
 		{
-			transmitter_status=0;
+			transmitter_status=0; 
+			gpio_set_dir(rf_pin, GPIO_IN);gpio_set_dir(rf_pin+1, GPIO_IN);gpio_set_dir(rf_pin+2, GPIO_IN);gpio_set_dir(rf_pin+3, GPIO_IN); //change RF pins to high Z
 			PioDCOStop(pctx->_pTX->_p_oscillator);	// Stop the oscilator
 		}
 	}
@@ -192,6 +196,8 @@ else
 			if (pctx->_txSched.verbosity>=3) printf("\nStarting TX. current minute: %i Schedule Value (packet type): %i\n",current_minute,schedule[current_minute]);
 			PioDCOStart(pctx->_pTX->_p_oscillator); 
 			transmitter_status=1;
+			gpio_set_dir(rf_pin, GPIO_OUT);gpio_set_dir(rf_pin+1, GPIO_OUT);gpio_set_dir(rf_pin+2, GPIO_OUT);gpio_set_dir(rf_pin+3, GPIO_OUT); //change RF pins back to ouputs
+
 			WSPRbeaconCreatePacket(pctx, schedule[current_minute] ); //the schedule determines packet type (1-4 for U4B 1st msg,U4B 2nd msg,Zachtek 1st, Zachtek 2nd)
 			sleep_ms(50);
 			WSPRbeaconSendPacket(pctx); 
@@ -255,6 +261,7 @@ int WSPRbeaconCreatePacket(WSPRbeaconContext *pctx,int packet_type)  //1-6.  1: 
 	wspr_encode(pctx->_pu8_callsign, _4_char_version_of_locator, pctx->_u8_txpower, pctx->_pu8_outbuf, pctx->_txSched.verbosity);   // look in WSPRutility.c for wspr_encode
 	grid5 = pctx->_pu8_locator[4];  //record the values of grid chars 5 and 6 now, but they won't be used until packet type 2 is created
     grid6 = pctx->_pu8_locator[5];
+	altitude_snapshot=pctx->_pTX->_p_oscillator->_pGPStime->_altitude;     //save the value for later when used in 2nd packet
    }
  if (packet_type==2)   // special encoding for 2nd packet of U4B protocol
    {
@@ -274,7 +281,7 @@ int WSPRbeaconCreatePacket(WSPRbeaconContext *pctx,int packet_type)  //1-6.  1: 
       // convert inputs into components of a big number
         uint8_t grid5Val = grid5 - 'A';
         uint8_t grid6Val = grid6 - 'A';
-		uint16_t altFracM =  round((double)pctx->_pTX->_p_oscillator->_pGPStime->_altitude / 20);     
+		uint16_t altFracM =  round((double)altitude_snapshot/ 20);     
 
 	 // convert inputs into a big number
         uint32_t val = 0;
